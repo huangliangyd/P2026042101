@@ -1,0 +1,38 @@
+﻿========== 模型评估报告 ==========
+最优5折CV AUC: 0.534333
+
+最优参数:
+objective: binary:logistic
+eval_metric: auc
+max_depth: 3
+learning_rate: 0.2805160236812463
+n_estimators: 82
+min_child_weight: 1.1483869163904128
+subsample: 0.7097263727202652
+colsample_bytree: 0.7304454915729599
+gamma: 2.4317595588455774
+reg_alpha: 0.07735824084897752
+reg_lambda: 0.689663759279117
+scale_pos_weight: 0.13821138211382114
+random_state: 42
+n_jobs: -1
+early_stopping_rounds: 10
+
+测试集指标:
+AUC: 0.612981
+Accuracy: 0.733333
+Recall: 0.769231
+Precision: 0.909091
+F1-score: 0.833333
+
+输出文件:
+xgb_model.pkl
+shap_explainer.pkl
+confusion_matrix.png
+roc_curve.png
+shap_summary.png
+pastae_shap_dependence.png
+fev1_shap_dependence.png
+sgrq_shap_dependence.png
+shap_waterfall.png
+xgb_summary.png
