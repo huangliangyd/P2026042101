@@ -365,7 +365,7 @@ with st.sidebar:
     st.markdown(
         """
         <div class="sidebar-brand">
-            <p class="name">某某医院</p>
+            <p class="name">中南大学湘雅二医院</p>
             <div class="tagline">AECOPD 智能评估系统</div>
         </div>
         """,
