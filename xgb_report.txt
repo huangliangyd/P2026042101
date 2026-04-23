@@ -31,8 +31,12 @@ shap_explainer.pkl
 confusion_matrix.png
 roc_curve.png
 shap_summary.png
+shap_beeswarm.png
 pastae_shap_dependence.png
 fev1_shap_dependence.png
 sgrq_shap_dependence.png
 shap_waterfall.png
+shap_force_plot.html
+shap_force_plot.png
+shap_decision_plot.png
 xgb_summary.png

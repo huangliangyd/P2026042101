@@ -279,12 +279,20 @@ def _to_shap_matrix(values):
 
 shap_matrix = _to_shap_matrix(shap_values_raw)
 
-# 5.1 SHAP汇总图（特征重要性）
+# 5.1 SHAP汇总图（重要性条形图）
 plt.figure()
-shap.summary_plot(shap_matrix, X_test, show=False)
-plt.title("SHAP汇总图（特征重要性）", fontsize=14)
+shap.summary_plot(shap_matrix, X_test, plot_type="bar", show=False)
+plt.title("SHAP Summary Plot（重要性条形图）", fontsize=14)
 plt.tight_layout()
 plt.savefig("shap_summary.png", dpi=300, bbox_inches="tight")
+plt.close()
+
+# 5.1.1 SHAP beeswarm plot（蜂群图）
+plt.figure()
+shap.summary_plot(shap_matrix, X_test, show=False)
+plt.title("SHAP Beeswarm Plot（蜂群图）", fontsize=14)
+plt.tight_layout()
+plt.savefig("shap_beeswarm.png", dpi=300, bbox_inches="tight")
 plt.close()
 
 
@@ -349,6 +357,49 @@ plt.tight_layout()
 plt.savefig("shap_waterfall.png", dpi=300, bbox_inches="tight")
 plt.close()
 
+# 5.4 单样本SHAP force plot（力图）
+force_html = shap.force_plot(
+    base_value,
+    shap_matrix[sample_idx],
+    X_test.iloc[sample_idx],
+    matplotlib=False,
+)
+shap.save_html("shap_force_plot.html", force_html)
+
+try:
+    # shap.force_plot(..., matplotlib=True) 可直接导出为静态PNG
+    plt.figure(figsize=(16, 3))
+    shap.force_plot(
+        base_value,
+        shap_matrix[sample_idx],
+        X_test.iloc[sample_idx],
+        matplotlib=True,
+        show=False,
+        text_rotation=25,
+    )
+    plt.tight_layout()
+    plt.savefig("shap_force_plot.png", dpi=300, bbox_inches="tight")
+    plt.close()
+except Exception as exc:
+    print(f"警告：force plot PNG 生成失败，仅保留 HTML 版本。原因：{exc}")
+
+# 5.5 SHAP decision plot（决策图）
+try:
+    plt.figure(figsize=(12, 7))
+    shap.decision_plot(
+        base_value,
+        shap_matrix,
+        X_test,
+        feature_display_range=slice(-1, -16, -1),
+        show=False,
+    )
+    plt.title("SHAP Decision Plot（决策图）", fontsize=14)
+    plt.tight_layout()
+    plt.savefig("shap_decision_plot.png", dpi=300, bbox_inches="tight")
+    plt.close()
+except Exception as exc:
+    print(f"警告：decision plot 生成失败。原因：{exc}")
+
 # 保存SHAP解释器，便于后续直接加载使用
 joblib.dump(explainer, "shap_explainer.pkl")
 print("SHAP解释器已保存: shap_explainer.pkl")
@@ -410,10 +461,14 @@ report_lines += [
     "confusion_matrix.png",
     "roc_curve.png",
     "shap_summary.png",
+    "shap_beeswarm.png",
     "pastae_shap_dependence.png",
     "fev1_shap_dependence.png",
     "sgrq_shap_dependence.png",
     "shap_waterfall.png",
+    "shap_force_plot.html",
+    "shap_force_plot.png",
+    "shap_decision_plot.png",
     "xgb_summary.png",
 ]
 

@@ -227,6 +227,10 @@ def parse_report(report_path: Path):
             in_params = False
             in_metrics = True
             continue
+        if line == "输出文件:" or line.startswith("输出文件:"):
+            in_params = False
+            in_metrics = False
+            continue
         if not line:
             continue
 
@@ -581,23 +585,26 @@ else:
     st.markdown("### 模型性能评估指标")
     if metric_info:
         c1, c2, c3, c4, c5 = st.columns(5)
-        c1.metric("AUC", metric_info.get("AUC", "-"))
-        c2.metric("Accuracy", metric_info.get("Accuracy", "-"))
-        c3.metric("Recall", metric_info.get("Recall", "-"))
-        c4.metric("Precision", metric_info.get("Precision", "-"))
-        c5.metric("F1-score", metric_info.get("F1-score", "-"))
+        c1.metric("AUC", format_decimal_str(metric_info.get("AUC", "-"), 2))
+        c2.metric("Accuracy", format_decimal_str(metric_info.get("Accuracy", "-"), 2))
+        c3.metric("Recall", format_decimal_str(metric_info.get("Recall", "-"), 2))
+        c4.metric("Precision", format_decimal_str(metric_info.get("Precision", "-"), 2))
+        c5.metric("F1-score", format_decimal_str(metric_info.get("F1-score", "-"), 2))
     else:
         st.info("未读取到 xgb_report.txt 中的指标信息。")
 
     st.markdown("### 模型可解释性（SHAP）")
-    st.write("以下图像均来自模型输出文件，便于临床医生和科研人员直观理解模型决策逻辑。")
+    st.write("以下图像均来自第二步输出文件，便于临床医生和科研人员直观理解模型决策逻辑。")
 
     img_map = [
-        ("shap_summary.png", "SHAP汇总图（特征重要性）", "表示整体样本中各特征对风险预测贡献的大小和方向，越靠前通常越重要。"),
+        ("shap_summary.png", "SHAP Summary Plot（重要性条形图）", "按平均绝对SHAP值排序，条越长说明该特征对整体预测影响越大。"),
+        ("shap_beeswarm.png", "SHAP Beeswarm Plot（蜂群图）", "每个点代表一个样本，横轴是SHAP值；颜色表示特征值高低，可同时看重要性与作用方向。"),
         ("pastae_shap_dependence.png", "SHAP依赖图：PastAE", "观察既往AECOPD病史水平变化时，对风险概率的推动或抑制趋势。"),
         ("fev1_shap_dependence.png", "SHAP依赖图：FEV1", "反映肺功能指标变化与风险贡献之间的关联关系。"),
         ("sgrq_shap_dependence.png", "SHAP依赖图：SGRQ", "展示生活质量评分升高时，模型风险贡献如何变化。"),
         ("shap_waterfall.png", "SHAP单样本瀑布图", "解释某一位患者为何被预测为高/中/低风险，各特征贡献一目了然。"),
+        ("shap_force_plot.png", "SHAP单样本力图（Force Plot）", "从基线风险出发，红色特征将预测推高、蓝色特征将预测拉低，直观展示个体风险形成过程。"),
+        ("shap_decision_plot.png", "SHAP决策图（Decision Plot）", "展示样本在多特征累计作用下，模型输出如何逐步变化，便于比较不同样本的决策路径。"),
     ]
 
     for file_name, title, desc in img_map:

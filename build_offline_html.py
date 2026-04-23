@@ -33,6 +33,9 @@ def parse_report(path: Path):
         if line == "测试集指标:":
             in_params, in_metrics = False, True
             continue
+        if line == "输出文件:" or line.startswith("输出文件:"):
+            in_params, in_metrics = False, False
+            continue
         if not line or ":" not in line:
             continue
         k, v = line.split(":", 1)
@@ -41,6 +44,16 @@ def parse_report(path: Path):
         elif in_metrics:
             metrics[k.strip()] = v.strip()
     return params, metrics
+
+
+def format_decimal_str(value: str, decimals: int = 2) -> str:
+    try:
+        num = float(value)
+    except (TypeError, ValueError):
+        return value
+    if num.is_integer():
+        return str(int(num))
+    return f"{num:.{decimals}f}"
 
 
 def main():
@@ -72,8 +85,17 @@ def main():
         "shap_waterfall": img_to_base64(ROOT / "shap_waterfall.png"),
     }
 
-    params_html = "".join([f"<li><b>{k}</b>: {v}</li>" for k, v in params.items()])
-    metrics_html = "".join([f"<div class='metric'><span>{k}</span><strong>{v}</strong></div>" for k, v in metrics.items()])
+    params_html = "".join(
+        [f"<li><b>{k}</b>: {format_decimal_str(v, 2)}</li>" for k, v in params.items()]
+    )
+    metric_order = ["AUC", "Accuracy", "Recall", "Precision", "F1-score"]
+    metrics_html = "".join(
+        [
+            f"<div class='metric'><span>{k}</span><strong>{format_decimal_str(metrics[k], 4)}</strong></div>"
+            for k in metric_order
+            if k in metrics
+        ]
+    )
     features_js = "[" + ",".join([f"'{f}'" for f in feature_names]) + "]"
 
     html = f"""<!DOCTYPE html>
@@ -102,6 +124,7 @@ def main():
     .metric {{ background:#edf3fb; border-radius:10px; padding:10px 12px; margin:4px; display:inline-block; min-width:160px; }}
     .metric span {{ display:block; font-size:13px; color:#425466; }}
     .metric strong {{ font-size:20px; color:#0b2c59; }}
+    .metric.threshold strong {{ font-size:14px; font-weight:600; line-height:1.45; }}
     img {{ max-width:100%; border-radius:8px; margin-top:8px; }}
     table {{ border-collapse:collapse; width:100%; background:#fff; }}
     th,td {{ border:1px solid #d8e1ee; padding:8px; text-align:left; font-size:14px; }}
@@ -144,6 +167,7 @@ def main():
         <div class="result">
           <div class="metric"><span>AECOPD发生风险概率</span><strong id="riskProb">-</strong></div>
           <div class="metric"><span>风险等级</span><strong id="riskLevel">-</strong></div>
+          <div class="metric threshold"><span>判定阈值</span><strong>低风险：&lt;0.3　|　中风险：0.3–0.6　|　高风险：&gt;0.6</strong></div>
         </div>
       </div>
       <div class="card">
@@ -191,7 +215,7 @@ def main():
         <h3>模型性能指标</h3>
         <div>{metrics_html}</div>
       </div>
-      <div class="card"><h3>SHAP汇总图</h3><img src="data:image/png;base64,{images["shap_summary"]}" /><p>显示全局特征重要性与影响方向。</p></div>
+      <div class="card"><h3>SHAP Summary Plot（重要性条形图）</h3><img src="data:image/png;base64,{images["shap_summary"]}" /><p>按平均绝对SHAP值排序展示全局特征重要性。</p></div>
       <div class="card"><h3>SHAP依赖图：PastAE / FEV1 / SGRQ</h3>
         <img src="data:image/png;base64,{images["shap_pastae"]}" /><p>PastAE病史水平变化对应的风险贡献趋势。</p>
         <img src="data:image/png;base64,{images["shap_fev1"]}" /><p>FEV1变化与模型风险贡献关系。</p>
