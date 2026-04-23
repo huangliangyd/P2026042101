@@ -594,7 +594,7 @@ else:
         st.info("未读取到 xgb_report.txt 中的指标信息。")
 
     st.markdown("### 模型可解释性（SHAP）")
-    st.write("以下图像均来自第二步输出文件，便于临床医生和科研人员直观理解模型决策逻辑。")
+    st.write("以下图像均来自模型输出文件，便于临床医生和科研人员直观理解模型决策逻辑。")
 
     img_map = [
         ("shap_summary.png", "SHAP Summary Plot（重要性条形图）", "按平均绝对SHAP值排序，条越长说明该特征对整体预测影响越大。"),
