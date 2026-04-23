@@ -1,10 +1,10 @@
 import re
 from pathlib import Path
+from typing import Optional
 
 import joblib
 import numpy as np
 import pandas as pd
-import shap
 import streamlit as st
 import matplotlib.pyplot as plt
 from PIL import Image
@@ -206,6 +206,13 @@ def load_data(data_path: str):
     return pd.read_csv(data_path)
 
 
+@st.cache_resource
+def load_shap_module():
+    import shap
+
+    return shap
+
+
 def parse_report(report_path: Path):
     """从 xgb_report.txt 中提取最优参数和测试集指标。"""
     params = {}
@@ -342,7 +349,7 @@ def risk_level(prob):
     return "高风险"
 
 
-def safe_show_image(image_path: Path, caption: str | None = None, max_side: int = 2200):
+def safe_show_image(image_path: Path, caption: Optional[str] = None, max_side: int = 2200):
     """
     安全显示大图：对超大分辨率图片先缩放，再交给 Streamlit 展示，
     避免 PIL DecompressionBombError。
@@ -398,12 +405,21 @@ data_path = Path("cleaned_data.csv")
 raw_data_path = Path("dataset.csv")
 report_path = Path("xgb_report.txt")
 
-if not model_path.exists() or not explainer_path.exists() or not data_path.exists():
-    st.error("缺少必要文件：请确保 xgb_model.pkl、shap_explainer.pkl、cleaned_data.csv 均已生成。")
+if not model_path.exists() or not data_path.exists():
+    st.error("缺少必要文件：请确保 xgb_model.pkl、cleaned_data.csv 均已生成。")
     st.stop()
 
 model = load_model(str(model_path))
-explainer = load_explainer(str(explainer_path))
+explainer = None
+explainer_error = None
+if explainer_path.exists():
+    try:
+        explainer = load_explainer(str(explainer_path))
+    except Exception as exc:
+        explainer_error = str(exc)
+else:
+    explainer_error = "未找到 shap_explainer.pkl。"
+
 df = load_data(str(data_path))
 raw_df = load_data(str(raw_data_path)) if raw_data_path.exists() else None
 model_features = list(getattr(model, "feature_names_in_", [c for c in df.columns if c != "AECOPD_occur"]))
@@ -435,25 +451,31 @@ if page == "predict":
         prob = float(model.predict_proba(x_input)[:, 1][0])
         lvl = risk_level(prob)
 
-        shap_values = explainer.shap_values(x_input)
-        if isinstance(shap_values, list):
-            shap_row = np.array(shap_values[1])[0] if len(shap_values) > 1 else np.array(shap_values[0])[0]
-        elif hasattr(shap_values, "values"):
-            shap_row = np.array(shap_values.values)[0]
-        else:
-            shap_row = np.array(shap_values)[0]
+        one_exp = None
+        if explainer is not None:
+            try:
+                shap = load_shap_module()
+                shap_values = explainer.shap_values(x_input)
+                if isinstance(shap_values, list):
+                    shap_row = np.array(shap_values[1])[0] if len(shap_values) > 1 else np.array(shap_values[0])[0]
+                elif hasattr(shap_values, "values"):
+                    shap_row = np.array(shap_values.values)[0]
+                else:
+                    shap_row = np.array(shap_values)[0]
 
-        if isinstance(explainer.expected_value, (list, np.ndarray)):
-            base_value = explainer.expected_value[1] if len(explainer.expected_value) > 1 else explainer.expected_value[0]
-        else:
-            base_value = explainer.expected_value
+                if isinstance(explainer.expected_value, (list, np.ndarray)):
+                    base_value = explainer.expected_value[1] if len(explainer.expected_value) > 1 else explainer.expected_value[0]
+                else:
+                    base_value = explainer.expected_value
 
-        one_exp = shap.Explanation(
-            values=shap_row,
-            base_values=base_value,
-            data=x_input.iloc[0].values,
-            feature_names=x_input.columns.tolist(),
-        )
+                one_exp = shap.Explanation(
+                    values=shap_row,
+                    base_values=base_value,
+                    data=x_input.iloc[0].values,
+                    feature_names=x_input.columns.tolist(),
+                )
+            except Exception as exc:
+                explainer_error = str(exc)
 
         st.session_state["pred_prob"] = prob
         st.session_state["pred_level"] = lvl
@@ -499,10 +521,14 @@ if page == "predict":
             )
 
         st.markdown("#### 个体解释：SHAP瀑布图（当前预测患者）")
-        st.caption("说明：下图基于你最近一次点击“一键预测”时提交的输入值。若修改了输入，请再次点击按钮更新结果。")
-        fig = plt.figure(figsize=(10, 6))
-        shap.plots.waterfall(st.session_state["pred_explanation"], show=False, max_display=15)
-        st.pyplot(fig, clear_figure=True)
+        if st.session_state["pred_explanation"] is not None:
+            st.caption("说明：下图基于你最近一次点击“一键预测”时提交的输入值。若修改了输入，请再次点击按钮更新结果。")
+            shap = load_shap_module()
+            fig = plt.figure(figsize=(10, 6))
+            shap.plots.waterfall(st.session_state["pred_explanation"], show=False, max_display=15)
+            st.pyplot(fig, clear_figure=True)
+        else:
+            st.warning(f"SHAP解释暂不可用：{explainer_error or '解释器未成功加载。'}")
     else:
         st.info("请先点击“一键预测”以生成当前患者的风险结果与SHAP瀑布图。")
 
